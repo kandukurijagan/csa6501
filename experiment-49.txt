@@ -1,0 +1,49 @@
+import ollama
+
+reference = """
+Python is a high-level programming language.
+Python was created by Guido van Rossum.
+The first public release of Python was in 1991.
+Python supports object-oriented programming.
+"""
+
+print("===== Hallucination Demonstration =====")
+
+print("\nREFERENCE INFORMATION:")
+print(reference)
+
+question = input("\nEnter your question: ")
+
+prompt = f"""
+You are answering questions using the reference information below.
+
+REFERENCE:
+{reference}
+
+QUESTION:
+{question}
+
+Rules:
+- Use only the reference.
+- Do not add outside information.
+- If the answer is not present in the reference,
+  say "Information not available in the reference."
+"""
+
+try:
+
+    response = ollama.chat(
+        model="llama3.2",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+
+    print("\nLLM ANSWER:")
+    print(response["message"]["content"])
+
+except Exception as e:
+    print("Error:", e)

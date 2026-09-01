@@ -1,0 +1,49 @@
+import ollama
+
+print("================================")
+print(" Translation and Paraphrasing")
+print("================================")
+
+text = input("Enter text: ")
+language = input("Enter target language: ")
+
+if not text.strip() or not language.strip():
+    print("Please enter both text and language.")
+    exit()
+
+prompt = f"""
+Perform two tasks.
+
+1. Translate the given text into {language}.
+2. Paraphrase the original text in simple English.
+
+Original Text:
+{text}
+
+Give the output in this format:
+
+Translation:
+...
+
+Paraphrased Text:
+...
+"""
+
+try:
+
+    response = ollama.chat(
+        model="llama3.2",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+
+    print("\n========== RESULT ==========")
+    print(response["message"]["content"])
+
+except Exception as e:
+    print("Error:", e)
+    print("Make sure Ollama is running.")

@@ -1,0 +1,23 @@
+import ollama
+
+print("===== Ollama Text Generation =====")
+
+prompt = input("Enter prompt: ")
+
+if not prompt.strip():
+    print("Please enter a prompt.")
+    exit()
+
+try:
+
+    response = ollama.generate(
+        model="llama3.2",
+        prompt=prompt
+    )
+
+    print("\nGenerated Text:")
+    print(response["response"])
+
+except Exception as e:
+    print("Error:", e)
+    print("Make sure Ollama is running.")

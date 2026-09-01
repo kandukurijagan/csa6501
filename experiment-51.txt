@@ -1,0 +1,157 @@
+import os
+import ollama
+import chromadb
+from pypdf import PdfReader
+
+PDF_FILE = "engineering.pdf"
+DB_PATH = "./engineering_db"
+
+# --------------------------------
+# Check PDF
+# --------------------------------
+
+if not os.path.exists(PDF_FILE):
+    print("ERROR: engineering.pdf not found.")
+    print("Place the PDF in the same folder as this program.")
+    exit()
+
+# --------------------------------
+# Read PDF
+# --------------------------------
+
+reader = PdfReader(PDF_FILE)
+
+text = ""
+
+for page in reader.pages:
+    page_text = page.extract_text()
+
+    if page_text:
+        text += page_text + "\n"
+
+if not text.strip():
+    print("ERROR: Could not extract text from PDF.")
+    exit()
+
+# --------------------------------
+# Split text into chunks
+# --------------------------------
+
+words = text.split()
+
+chunks = []
+
+chunk_size = 150
+
+for i in range(0, len(words), chunk_size):
+
+    chunk = " ".join(words[i:i + chunk_size])
+
+    if chunk.strip():
+        chunks.append(chunk)
+
+print("Number of chunks:", len(chunks))
+
+# --------------------------------
+# Create ChromaDB
+# --------------------------------
+
+client = chromadb.PersistentClient(
+    path=DB_PATH
+)
+
+collection = client.get_or_create_collection(
+    name="engineering_documents"
+)
+
+# --------------------------------
+# Add documents
+# --------------------------------
+
+print("Creating embeddings...")
+
+for i, chunk in enumerate(chunks):
+
+    embedding_response = ollama.embeddings(
+        model="nomic-embed-text",
+        prompt=chunk
+    )
+
+    embedding = embedding_response["embedding"]
+
+    collection.upsert(
+        ids=[f"chunk_{i}"],
+        documents=[chunk],
+        embeddings=[embedding]
+    )
+
+print("Documents stored successfully.")
+
+# --------------------------------
+# Ask question
+# --------------------------------
+
+question = input("\nEnter technical question: ")
+
+if not question.strip():
+    print("Question cannot be empty.")
+    exit()
+
+# --------------------------------
+# Create question embedding
+# --------------------------------
+
+question_embedding = ollama.embeddings(
+    model="nomic-embed-text",
+    prompt=question
+)["embedding"]
+
+# --------------------------------
+# Retrieve relevant documents
+# --------------------------------
+
+results = collection.query(
+    query_embeddings=[question_embedding],
+    n_results=3
+)
+
+documents = results["documents"][0]
+
+context = "\n\n".join(documents)
+
+# --------------------------------
+# Generate answer using Ollama
+# --------------------------------
+
+prompt = f"""
+You are an engineering assistant.
+
+Answer the question using ONLY the context below.
+
+CONTEXT:
+{context}
+
+QUESTION:
+{question}
+
+Rules:
+- Do not invent information.
+- Give a clear technical answer.
+- If the context does not contain the answer,
+  say "The information is not available in the document."
+"""
+
+response = ollama.chat(
+    model="llama3.2",
+    messages=[
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ]
+)
+
+print("\n==============================")
+print("RAG ANSWER")
+print("==============================")
+print(response["message"]["content"])

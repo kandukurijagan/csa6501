@@ -1,0 +1,43 @@
+import streamlit as st
+import ollama
+
+st.set_page_config(page_title="Text Summarizer")
+
+st.title("Local LLM Text Summarizer")
+
+text = st.text_area(
+    "Enter text",
+    height=250
+)
+
+if st.button("Summarize"):
+    if text.strip():
+
+        prompt = f"""
+Summarize the following text in simple language.
+Give 5 important points.
+
+TEXT:
+{text}
+"""
+
+        try:
+            response = ollama.chat(
+                model="llama3.2",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+
+            st.subheader("Summary")
+            st.write(response["message"]["content"])
+
+        except Exception as e:
+            st.error("Ollama error. Make sure Ollama is running.")
+            st.error(str(e))
+
+    else:
+        st.warning("Please enter some text.")

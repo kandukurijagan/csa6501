@@ -1,0 +1,39 @@
+import ollama
+
+print("================================")
+print(" Local LLM Question Answering")
+print("================================")
+print("Type 'exit' to stop.\n")
+
+while True:
+
+    question = input("Question: ")
+
+    if question.lower() == "exit":
+        print("Program ended.")
+        break
+
+    if not question.strip():
+        print("Please enter a question.")
+        continue
+
+    try:
+        response = ollama.chat(
+            model="llama3.2",
+            messages=[
+                {
+                    "role": "user",
+                    "content": question
+                }
+            ]
+        )
+
+        answer = response["message"]["content"]
+
+        print("\nAnswer:")
+        print(answer)
+        print()
+
+    except Exception as e:
+        print("Error:", e)
+        print("Make sure Ollama is running.")

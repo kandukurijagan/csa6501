@@ -1,0 +1,166 @@
+import os
+import ollama
+import chromadb
+from pypdf import PdfReader
+
+PDF_FILE = "technical_manual.pdf"
+DB_PATH = "./troubleshooting_db"
+
+# --------------------------------
+# Check file
+# --------------------------------
+
+if not os.path.exists(PDF_FILE):
+    print("ERROR: technical_manual.pdf not found.")
+    exit()
+
+# --------------------------------
+# Read PDF
+# --------------------------------
+
+reader = PdfReader(PDF_FILE)
+
+text = ""
+
+for page in reader.pages:
+
+    page_text = page.extract_text()
+
+    if page_text:
+        text += page_text + "\n"
+
+if not text.strip():
+    print("ERROR: PDF contains no readable text.")
+    exit()
+
+# --------------------------------
+# Create chunks
+# --------------------------------
+
+words = text.split()
+
+chunks = []
+
+chunk_size = 150
+
+for i in range(0, len(words), chunk_size):
+
+    chunk = " ".join(
+        words[i:i + chunk_size]
+    )
+
+    if chunk.strip():
+        chunks.append(chunk)
+
+print("Chunks created:", len(chunks))
+
+# --------------------------------
+# ChromaDB
+# --------------------------------
+
+client = chromadb.PersistentClient(
+    path=DB_PATH
+)
+
+collection = client.get_or_create_collection(
+    name="technical_manual"
+)
+
+# --------------------------------
+# Create embeddings
+# --------------------------------
+
+print("Creating document embeddings...")
+
+for i, chunk in enumerate(chunks):
+
+    embedding = ollama.embeddings(
+        model="nomic-embed-text",
+        prompt=chunk
+    )["embedding"]
+
+    collection.upsert(
+        ids=[f"manual_{i}"],
+        documents=[chunk],
+        embeddings=[embedding]
+    )
+
+print("Technical manual indexed.")
+
+# --------------------------------
+# User problem
+# --------------------------------
+
+problem = input(
+    "\nDescribe the engineering problem: "
+)
+
+if not problem.strip():
+    print("Problem cannot be empty.")
+    exit()
+
+# --------------------------------
+# Embed problem
+# --------------------------------
+
+problem_embedding = ollama.embeddings(
+    model="nomic-embed-text",
+    prompt=problem
+)["embedding"]
+
+# --------------------------------
+# Retrieve relevant information
+# --------------------------------
+
+results = collection.query(
+    query_embeddings=[problem_embedding],
+    n_results=3
+)
+
+documents = results["documents"][0]
+
+context = "\n\n".join(documents)
+
+# --------------------------------
+# Generate troubleshooting answer
+# --------------------------------
+
+prompt = f"""
+You are an engineering troubleshooting assistant.
+
+Use ONLY the technical manual information provided below.
+
+TECHNICAL MANUAL:
+{context}
+
+ENGINEERING PROBLEM:
+{problem}
+
+Prepare a troubleshooting report using this format:
+
+1. Possible Cause
+2. Step-by-Step Troubleshooting
+3. Expected Result
+4. Safety Precautions
+
+Do not invent technical information.
+
+If the manual does not contain enough information,
+say that additional technical information is required.
+"""
+
+response = ollama.chat(
+    model="llama3.2",
+    messages=[
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ]
+)
+
+print("\n================================")
+print(" ENGINEERING TROUBLESHOOTING")
+print("================================")
+
+print(response["message"]["content"])

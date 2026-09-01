@@ -1,0 +1,30 @@
+import ollama
+
+print("===== Ollama Question Answering =====")
+
+question = input("Enter your question: ")
+
+if not question.strip():
+    print("Please enter a question.")
+    exit()
+
+prompt = f"""
+Answer the following question clearly and briefly.
+
+Question:
+{question}
+"""
+
+try:
+
+    response = ollama.generate(
+        model="llama3.2",
+        prompt=prompt
+    )
+
+    print("\nAnswer:")
+    print(response["response"])
+
+except Exception as e:
+    print("Error:", e)
+    print("Make sure Ollama is running.")

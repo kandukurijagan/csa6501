@@ -1,0 +1,33 @@
+import streamlit as st
+import ollama
+
+st.set_page_config(page_title="Text Generator")
+
+st.title("Local LLM Text Generator")
+
+prompt = st.text_area(
+    "Enter your prompt",
+    placeholder="Write a short paragraph about Artificial Intelligence"
+)
+
+if st.button("Generate Text"):
+    if prompt.strip():
+        try:
+            response = ollama.chat(
+                model="llama3.2",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+
+            st.subheader("Generated Text")
+            st.write(response["message"]["content"])
+
+        except Exception as e:
+            st.error("Make sure Ollama is running.")
+            st.error(str(e))
+    else:
+        st.warning("Please enter a prompt.")
